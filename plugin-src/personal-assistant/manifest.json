@@ -1,0 +1,157 @@
+{
+  "id": "personal-assistant",
+  "name": "Personal AI Assistant",
+  "version": "1.2.0",
+  "type": "extension",
+  "description": "AI chat assistant that answers only the owner's WhatsApp numbers or @lid mapping, with short per-chat conversation memory.",
+  "author": "OpenWA operator",
+  "license": "MIT",
+  "status": "stable",
+  "minOpenWAVersion": "0.30.0",
+  "testedOpenWAVersion": "0.30.2",
+  "main": "index.js",
+  "permissions": [
+    "net:fetch",
+    "messages:send",
+    "engine:read"
+  ],
+  "provides": [
+    "ai-assistant"
+  ],
+  "sessionScoped": true,
+  "sessions": [
+    "*"
+  ],
+  "hooks": [
+    "message:received"
+  ],
+  "net": {
+    "allow": [
+      "localhost",
+      "127.0.0.1",
+      "[::1]"
+    ],
+    "allowConfigHosts": [
+      "apiBaseUrl"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiBaseUrl": {
+        "type": "string",
+        "default": "https://api.z.ai/api/paas/v4",
+        "title": "API base URL",
+        "required": true,
+        "description": "Base URL of an OpenAI-compatible API, e.g. https://api.z.ai/api/paas/v4 or https://api.openai.com/v1. Must be https; an https host set here is added to the outbound allowlist automatically."
+      },
+      "apiKey": {
+        "type": "string",
+        "secret": true,
+        "required": true,
+        "title": "API key",
+        "description": "Bearer key for the provider. Stored as a secret and sent only to the API base URL."
+      },
+      "model": {
+        "type": "string",
+        "default": "glm-4.5-flash",
+        "title": "Model",
+        "required": true,
+        "description": "Model id sent with every request."
+      },
+      "ownerNumbers": {
+        "type": "string",
+        "required": true,
+        "title": "Owner numbers (comma separated)",
+        "description": "Only these phone numbers get an answer; everyone else is ignored. International format without +, e.g. 6281234567890,628999888777."
+      },
+      "systemPrompt": {
+        "type": "textarea",
+        "default": "Kamu adalah asisten pribadi di WhatsApp. Jawab dalam bahasa Indonesia yang santai dan jelas. Bantu soal pemrograman, ide, penjelasan kode, dan tugas sehari-hari. Pakai format WhatsApp: *tebal*, _miring_, tanpa tabel markdown. Jaga jawaban tetap ringkas kecuali diminta detail.",
+        "title": "System prompt",
+        "description": "Instructions for tone and scope. Not secret: never put confidential data here."
+      },
+      "respondInGroups": {
+        "type": "boolean",
+        "default": false,
+        "title": "Also respond in groups",
+        "description": "Off by default. When on, group messages from an owner number are answered too."
+      },
+      "maxOutputTokens": {
+        "type": "number",
+        "default": 700,
+        "min": 1,
+        "title": "Max output tokens",
+        "description": "Sent as max_tokens, bounding reply length and cost."
+      },
+      "maxInputChars": {
+        "type": "number",
+        "default": 4000,
+        "min": 1,
+        "title": "Max input characters",
+        "description": "Incoming text is cut to this many characters before it reaches the provider."
+      },
+      "maxRepliesPerChatPerHour": {
+        "type": "number",
+        "default": 30,
+        "min": 1,
+        "title": "Max replies per chat per hour",
+        "description": "Per-chat hourly cap on provider calls. Kept in memory, so a restart resets it."
+      },
+      "timeoutMs": {
+        "type": "number",
+        "default": 20000,
+        "min": 1000,
+        "max": 25000,
+        "title": "Request timeout (ms)",
+        "description": "Provider request timeout, clamped to 1000-25000 ms."
+      },
+      "ownerLids": {
+        "type": "string",
+        "title": "Owner lid ids (comma separated, optional)",
+        "description": "Privacy ids (@lid digits) allowed to use the assistant when the gateway has not learned their phone mapping yet. Leave empty to rely on ownerNumbers + mapping."
+      }
+    }
+  },
+  "i18n": {
+    "id": {
+      "name": "Asisten AI Pribadi",
+      "description": "Asisten chat AI yang hanya membalas nomor WhatsApp pemilik, dengan ingatan percakapan singkat per chat.",
+      "config": {
+        "apiBaseUrl": {
+          "title": "URL dasar API"
+        },
+        "apiKey": {
+          "title": "Kunci API"
+        },
+        "model": {
+          "title": "Model"
+        },
+        "ownerNumbers": {
+          "title": "Nomor pemilik (pisahkan koma)"
+        },
+        "systemPrompt": {
+          "title": "System prompt"
+        },
+        "respondInGroups": {
+          "title": "Balas juga di grup"
+        },
+        "maxOutputTokens": {
+          "title": "Maks token keluaran"
+        },
+        "maxInputChars": {
+          "title": "Maks karakter masukan"
+        },
+        "maxRepliesPerChatPerHour": {
+          "title": "Maks balasan per chat per jam"
+        },
+        "timeoutMs": {
+          "title": "Batas waktu permintaan (ms)"
+        },
+        "ownerLids": {
+          "title": "ID lid pemilik (pisahkan koma, opsional)"
+        }
+      }
+    }
+  }
+}
