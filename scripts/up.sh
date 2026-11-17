@@ -71,6 +71,19 @@ else
   say "dasbor: dependensi sudah terpasang"
 fi
 
+# --- dashboard bundle ---------------------------------------------------------------------------
+# The gateway also serves dashboard/dist on its own port, so when that bundle is missing (fresh
+# restore) or older than the pages in dashboard/public, http://127.0.0.1:2785/ and /overview.html
+# answer 404 or show a stale page.
+if [ ! -f dashboard/dist/index.html ] || [ ! -f dashboard/dist/overview.html ] \
+  || [ dashboard/public/overview.html -nt dashboard/dist/overview.html ]; then
+  say "dasbor: membangun dist agar port ${PORT_VALUE} menyajikan halaman, bukan 404 ..."
+  (cd dashboard && npx vite build) || die "vite build di dashboard gagal — lihat output di atas"
+  say "dasbor: dist siap"
+else
+  say "dasbor: dist sudah mutakhir"
+fi
+
 # --- gateway ------------------------------------------------------------------------------------
 if [ "$(health_code)" = "200" ]; then
   say "gateway: sudah hidup di ${BASE} (tidak dinyalakan ulang)"
@@ -95,6 +108,24 @@ while [ "$(health_code)" != "200" ]; do
   sleep 3
 done
 say "gateway: health 200"
+
+# --- webhook receiver ---------------------------------------------------------------------------
+# Local receiver for the webhooks registered on the gateway (scripts/webhook-receiver.mjs). Loopback
+# delivery needs SSRF_ALLOWED_HOSTS=127.0.0.1 in .env; without the receiver running, every event is
+# retried and then recorded as a delivery failure.
+RECEIVER_PORT="${OPENWA_WEBHOOK_PORT:-2786}"
+RECEIVER_LOG="${OPENWA_WEBHOOK_LOG_OUT:-/tmp/openwa-webhook.log}"
+receiver_code() { curl -s -m 3 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${RECEIVER_PORT}/health" 2>/dev/null || echo 000; }
+if [ "$(receiver_code)" = "200" ]; then
+  say "webhook: penerima sudah hidup di port ${RECEIVER_PORT}"
+else
+  say "webhook: menyalakan penerima di port ${RECEIVER_PORT} (log: ${RECEIVER_LOG}) ..."
+  setsid nohup node scripts/webhook-receiver.mjs >>"$RECEIVER_LOG" 2>&1 </dev/null &
+  echo $! >data/webhook-receiver.pid
+  for _ in $(seq 1 15); do [ "$(receiver_code)" = "200" ] && break; sleep 1; done
+  [ "$(receiver_code)" = "200" ] && say "webhook: penerima health 200" \
+    || warn "penerima webhook tidak menjawab di port ${RECEIVER_PORT} — lihat ${RECEIVER_LOG}"
+fi
 
 # --- session ------------------------------------------------------------------------------------
 if [ -z "$(api_key)" ]; then
