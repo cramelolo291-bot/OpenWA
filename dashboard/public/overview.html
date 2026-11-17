@@ -393,7 +393,7 @@
         <div class="col">
           <section class="card glass">
             <h2>Ringkasan</h2>
-            <p class="hint">Angka diambil langsung dari gateway di port 2785.</p>
+            <p class="hint">Angka diambil langsung dari gateway di port 2785. Kalau halaman ini dibuka dari hosting lain, tambahkan <code>?gateway=https://alamat-gateway</code> pada URL.</p>
             <div class="stats">
               <div class="stat">
                 <div class="label">Gateway</div>
@@ -489,6 +489,10 @@
 
     <script type="module">
       const KEY_STORAGE = 'openwa_api_key';
+      // This page is also served as a static site, where the gateway is not on the same origin: add
+      // ?gateway=https://host:port to point the calls there instead. Without it, requests stay
+      // relative so one gateway origin keeps serving page and API.
+      const API_BASE = (new URLSearchParams(location.search).get('gateway') || '').replace(/\/+$/, '');
       const SHARE_BASE = 'https://share.plannotator.ai';
       const MAX_TEXT = 4096;
 
@@ -513,7 +517,7 @@
         const needsKey = path !== '/health';
         const key = apiKey();
         if (needsKey && !key) throw new Error('Isi kunci API dulu di panel kanan');
-        const response = await fetch(`/api${path}`, {
+        const response = await fetch(`${API_BASE}/api${path}`, {
           ...options,
           headers: {
             ...(key ? { 'X-API-Key': key } : {}),
@@ -522,6 +526,16 @@
           },
         });
         const text = await response.text();
+        // A static host answers /api/* with its HTML fallback, which is not a gateway: say so instead
+        // of leaking a JSON parse error into the status rows.
+        const type = response.headers.get('content-type') || '';
+        if (!type.includes('application/json')) {
+          throw new Error(
+            API_BASE
+              ? `${API_BASE} bukan gateway OpenWA (jawabannya bukan JSON)`
+              : 'buka dengan ?gateway=https://alamat-gateway'
+          );
+        }
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${text.slice(0, 140)}`);
         return text ? JSON.parse(text) : null;
       }

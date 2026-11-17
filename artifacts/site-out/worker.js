@@ -1,0 +1,8 @@
+// Static host for the OpenWA control page: assets only, with an SPA-style fallback to index.html.
+export default {
+  async fetch(request, env) {
+    const response = await env.ASSETS.fetch(request);
+    if (response.status !== 404) return response;
+    return env.ASSETS.fetch(new Request(new URL('/', request.url), request));
+  },
+};
